@@ -1,0 +1,295 @@
+<?xml version="1.0" encoding="ISO-8859-1" ?>
+<!DOCTYPE html>
+<html
+  lang="en"
+  xmlns="http://www.w3.org/1999/xhtml"
+  xmlns:jsf="http://xmlns.jcp.org/jsf"
+  xmlns:ui="http://xmlns.jcp.org/jsf/facelets"
+  xmlns:h="http://xmlns.jcp.org/jsf/html"
+  xmlns:f="http://xmlns.jcp.org/jsf/core"
+  xmlns:c="http://xmlns.jcp.org/jsp/jstl/core"
+  xmlns:a="http://xmlns.jcp.org/jsf/passthrough"
+  >
+
+  <!-- view that supports full C-R-U-D for Customers without navigation to other pages -->
+
+  <f:metadata>
+    <f:viewAction action="#{customerController.loadCustomers()}" phase="UPDATE_MODEL_VALUES" />
+  </f:metadata>
+
+  <!-- SPA (single-page-application) view that supports full C-R-U-D for Customers -->
+  <h:head>
+    <meta content="text/html; charset=UTF-8" http-equiv="Content-Type" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- title of tab/window in browser -->
+    <title>#{uiconsts['viewTitle']}</title>
+    <!-- Use modern Frontend artifacts such as JQuery, Font Awesome, Bootstrap etc. -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" crossorigin="anonymous" />
+    <link href="https://use.fontawesome.com/releases/v5.12.0/css/all.css" type="text/css" rel="stylesheet" crossorigin="anonymous" />
+    <link href="https://unpkg.com/bootstrap@4.5.2/dist/css/bootstrap.min.css" type="text/css" rel="stylesheet"  crossorigin="anonymous" />
+    <script src="https://unpkg.com/bootstrap@4.5.2/dist/js/bootstrap.min.js" crossorigin="anonymous" />
+    
+    <!-- misc style tweaks: table hover color (you can change/add to this if you like) -->
+    <style>
+      .table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
+        background-color: #f0f0e0;
+      }
+      .table td {
+        position: relative;
+      }
+      .table tbody td input {
+        position: absolute;
+        display: block;
+        top:0;
+        left:0;
+        height: 100% !important;
+        width: 100%;
+        border-radius: 0 !important;
+        border: 1px solid orange;
+        padding: 8px;
+        box-sizing: border-box;
+      }
+      .validator-message {
+	      position: absolute;
+	      display: block;
+	      top:0;
+	      left:0;
+	      font-size: medium;
+	      height: 100% !important;
+	      width: 100%;
+	      border-radius: 0 !important;
+	      border: 1px solid red;
+	      box-sizing: border-box;
+	   }
+      .refreshFooter {
+        display:block; 
+        text-align: center;
+      }
+      .placeholder-darkgray {
+       color: #a9a9a9
+      }
+    </style>
+  </h:head>
+  <h:body>
+    <div class="container-fluid">
+      <!-- top navigation bar -->
+      <nav id="topbar" class="navbar navbar-light bg-light">
+        <div class="navbar-header">
+          <i class="navbar-brand fa fa-address-book"/>
+          <h:outputText value="#{uiconsts['viewTitle']}"/>
+        </div>
+        <div class="navbar-header">
+          <h:panelGroup>
+            <a href="#" data-toggle="modal" data-target="#settingsModal"><span style="color: black;"><i class="fa fa-cog" />&#160;#{uiconsts['settings']}</span></a>
+            <div id="settingsModal" class="modal">
+              <h:form class="form" role="form" id="login">
+                <div class="modal-dialog">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h:outputText style="color: black;" escape="false" value="#{uiconsts['settings']} (#{uiconsts['nyi']})" /> 
+                      <button type="button" class="close" data-dismiss="modal">&#8855;</button>
+                    </div>
+                    <div class="modal-body">
+                      <h:outputText id="promptMessage" styleClass="outputText" value="What is your favourite type of fruit?" />
+                      <h:selectOneRadio disabledClass="selectOneRadio_Disabled" layout="pageDirection"
+                        enabledClass="selectOneRadio_Enabled" id="fruitName" styleClass="selectOneRadio">
+                        <f:selectItem itemValue="bananas" itemLabel="bananas" />
+                        <f:selectItem itemValue="apples" itemLabel="apples" />
+                        <f:selectItem itemValue="pineapple" itemLabel="pineapple" />
+                      </h:selectOneRadio>
+                      <div class="form-group last text-right">
+                        <h:commandButton class="btn btn-outline-dark" id="submit" disabled="true" value="#{uiconsts['submitButtonLabel']}" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </h:form>
+            </div>
+          </h:panelGroup>
+        </div>
+      </nav>
+      <!-- footer
+         Bootstrap CSS is clever - even though this element is defined second under the 'container-fluid',
+         it is fixed to the bottom of the page
+       -->
+      <footer class="footer fixed-bottom bg-light text-center">
+        <h:outputText class="text-muted credit" value="Brought to you by #{uiconsts['footer.studentname']} (20F CST 8277 - #{uiconsts['footer.labsection']} - Student #: #{uiconsts['footer.studentnumber']})"/>
+      </footer>  
+
+      <!-- main context -->
+      <div id="main" role="main" class="main col-12">
+      
+        <h:form id="addCustomer">
+          <!-- how do we show/hide this form? -->
+          <h:commandLink action="#{customerController.toggleAdding()}">
+            <i class="fa fa-user-plus" />&#xa0;<h:outputText value="#{uiconsts['addViewTitle']}" />
+          </h:commandLink>
+          <h:panelGroup rendered="#{customerController.adding}">
+            <h:panelGrid columns="2" cellpadding="2" cellspacing="1">
+            
+              <h:panelGroup class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text" id="firstName-addon"><i class="fa fa-edit fa-fw"/></span>
+                </div>
+                <h:inputText type="text" id="new_firstName" style="width: 50em;" styleClass="form-control placeholder-darkgray"
+                  aria-describedby="firstName-addon"
+                  validatorMessage="#{uiconsts['enter_valid_string']}" 
+                  value="#{newCustomerView.firstName}" a:placeholder="#{uiconsts['columnLabel_FirstName']}">
+                  <f:validateLength minimum="1"/>
+                </h:inputText>
+              </h:panelGroup>
+              <h:message for="new_firstName" style="color:red" />
+              
+              <h:panelGroup class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text" id="lastName-addon"><i class="fa fa-edit fa-fw"/></span>
+                </div>
+                <h:inputText type="text" id="new_lastName" styleClass="form-control placeholder-darkgray"
+                  aria-describedby="lastName-addon"
+                  validatorMessage="#{uiconsts['enter_valid_string']}"
+                  value="#{newCustomerView.lastName}" a:placeholder="#{uiconsts['columnLabel_LastName']}">
+                  <f:validateLength minimum="1"/>
+                </h:inputText>
+              </h:panelGroup>
+              <h:message for="new_lastName" style="color:red" />
+              
+              <h:panelGroup class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text" id="phoneNumber-addon"><i class="fa fa-phone fa-fw"/></span>
+                </div>
+                <h:inputText type="text" id="new_phoneNumber" styleClass="form-control placeholder-darkgray"
+                  aria-describedby="phoneNumber-addon"
+                  validatorMessage="#{uiconsts['enter_valid_phonenumber']}"
+                  value="#{newCustomerView.phoneNumber}" a:placeholder="#{uiconsts['example_PhoneNumber']}">
+                  <f:validator validatorId="phoneValidator"/>
+                </h:inputText>
+              </h:panelGroup>
+              <h:message for="new_phoneNumber" style="color:red" />
+              
+              <h:panelGroup class="input-group">
+                <div class="input-group-prepend">
+                  <span class="input-group-text" id="email-addon"><i class="fa fa-envelope fa-fw"/></span>
+                </div>
+                <h:inputText type="text" id="new_email" styleClass="form-control placeholder-darkgray"
+                  aria-describedby="email-addon"
+                  validatorMessage="#{uiconsts['enter_valid_email']}"
+                  value="#{newCustomerView.email}" a:placeholder="#{uiconsts['columnLabel_Email']}">
+                  <f:validator validatorId="emailValidator"/>
+                </h:inputText>
+              </h:panelGroup>
+              <h:message for="new_email" style="color:red" />
+              
+            </h:panelGrid>
+            <h:panelGrid id="actions" columns="2" cellpadding="10">
+              <h:commandLink action="#{newCustomerView.addCustomer()}" >
+                <i class="fa fa-user-plus fa-fw" />&#xa0;<h:outputText class="text-success" value="#{uiconsts['submitButtonLabel']}" />
+              </h:commandLink>
+              <h:commandLink action="#{customerController.toggleAdding()}" immediate="true">
+                <i class="fa fa-undo fa-fw" />&#xa0;<h:outputText class="text-primary" value="#{uiconsts['cancelButtonLabel']}" />
+              </h:commandLink>
+            </h:panelGrid>
+          </h:panelGroup>
+        </h:form>
+        <br/>
+        <h:form id="customerList">
+          <h:dataTable value="#{customerController.customers}" var="cust"
+            styleClass="table table-striped table-bordered table-hover"
+            headerClass="thead-light"
+            captionClass="text-center">
+            <h:column styleClass="width: 5%;">
+              <f:facet name="header">#{uiconsts['columnLabel_Id']}</f:facet>
+              <h:outputText value="#{cust.id}" style="color:#000;" />
+            </h:column>
+            <h:column>
+              <f:facet name="header">#{uiconsts['columnLabel_FirstName']}</f:facet>
+              <h:outputText value="#{cust.firstName}"/>
+              <h:inputText id="firstName_editable" validatorMessage="#{uiconsts['enter_valid_string']}"
+                  value="#{cust.firstName}" action="#{cust.toggleEditable}" rendered="#{cust.isEditable()}">
+                <f:validateLength minimum="1"/>
+              </h:inputText>
+              <br/>
+              <h:message for="firstName_editable" class="validator-message" style="color:red" />
+            </h:column>
+            <h:column>
+              <f:facet name="header">#{uiconsts['columnLabel_LastName']}</f:facet>
+              <h:outputText value="#{cust.lastName}"/>
+              <h:inputText id="lastName_editable" validatorMessage="#{uiconsts['enter_valid_string']}"
+                  value="#{cust.lastName}" action="#{cust.toggleEditable}" rendered="#{cust.isEditable()}">
+                <f:validateLength minimum="1"/>
+              </h:inputText>
+              <br/>
+              <h:message for="lastName_editable" class="validator-message" style="color:red" />
+            </h:column>
+            <h:column>
+              <f:facet name="header">#{uiconsts['columnLabel_PhoneNumber']}</f:facet>
+              <h:outputText value="#{cust.phoneNumber}"/>
+              <h:inputText id="phoneNumber_editable" validatorMessage="#{uiconsts['enter_valid_phonenumber']}"
+                  value="#{cust.phoneNumber}" action="#{cust.toggleEditable}" rendered="#{cust.isEditable()}">
+                <f:validator validatorId="phoneValidator"/>
+              </h:inputText>
+              <br/>
+              <h:message for="phoneNumber_editable" class="validator-message" style="color:red" />
+            </h:column>
+            <h:column>
+              <f:facet name="header">#{uiconsts['columnLabel_Email']}</f:facet>
+              <h:outputText value="#{cust.email}"/>
+              <h:inputText id="email_editable" validatorMessage="#{uiconsts['enter_valid_email']}"
+                  value="#{cust.email}" action="#{cust.toggleEditable}" rendered="#{cust.isEditable()}">
+                <f:validator validatorId="emailValidator"/>
+              </h:inputText>
+              <br/>
+              <h:message for="email_editable" class="validator-message" style="color:red" />
+            </h:column>
+            <!-- Action column -->
+            <h:column>
+              <f:facet name="header">#{uiconsts['columnLabel_Action']}</f:facet>
+              <h:commandLink action="#{customerController.editCustomer(cust)}" rendered="#{cust.isEditable() == false}">
+                <i class="fa fa-edit fa-fw" />&#xa0;<h:outputText value="#{uiconsts['editButtonLabel']}" />
+              </h:commandLink>
+              &#xa0;
+              <h:commandLink action="#{customerController.updateCustomer(cust)}" rendered="#{cust.isEditable()}">
+                <i class="fa fa-save fa-fw" />&#xa0;<h:outputText class="text-success" value="#{uiconsts['submitButtonLabel']}" />
+              </h:commandLink>
+              &#xa0;
+              <h:commandLink action="#{customerController.cancelUpdate(cust)}" immediate="true" rendered="#{cust.isEditable()}">
+                <i class="fa fa-undo fa-fw" />&#xa0;<h:outputText value="#{uiconsts['cancelButtonLabel']}" />
+              </h:commandLink>
+              &#xa0;
+              <h:panelGroup rendered="#{cust.isEditable() == false}">
+                <a href="#" data-toggle="modal" data-target="#removeCustomerModal#{cust.id}"><span class="fa fa-trash fa-fw" style="color:red" />&#xa0;<h:outputText value="#{uiconsts['deleteButtonLabel']}"/></a>
+                <div class="modal fade" tabindex="-1" role="dialog" id="removeCustomerModal#{cust.id}">
+                  <div class="modal-dialog" role="document">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&#8855;</span></button>
+                      </div>
+                      <div class="modal-body">
+                        <p>#{uiconsts['rus']} (#{cust.id})</p>
+                      </div>
+                      <div class="modal-footer">
+                        <div class="form-group last text-right">
+                            <button type="button" class="btn btn-outline-default" data-dismiss="modal">#{uiconsts['cancelButtonLabel']}</button>
+                            <h:panelGroup>
+                              <button type="button" class="btn btn-outline-dark" data-dismiss="modal">#{uiconsts['deleteButtonLabel']}
+                                <f:ajax event="click" listener="#{customerController.deleteCustomer(cust.id)}" render="@form :customerList"/>
+                              </button>
+                            </h:panelGroup>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>        
+              </h:panelGroup>
+            </h:column>
+            <f:facet name="footer">
+              <h:panelGroup class="refreshFooter">
+                <h:commandButton value="#{uiconsts['refreshButtonLabel']}" action="#{customerController.refreshCustomerForm()}" /> 
+              </h:panelGroup>
+            </f:facet>
+          </h:dataTable>
+        </h:form>
+        <h:messages globalOnly="true" layout="table" styleClass="alert alert-danger"/>
+      </div>
+    </div>
+  </h:body>
+</html>
